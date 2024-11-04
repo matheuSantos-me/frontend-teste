@@ -1,101 +1,129 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { BarChart } from "@mui/x-charts/BarChart";
+import axios from "axios";
+
+import { IVotingIntention } from "./interfaces";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const newTheme = createTheme({ palette: { mode: "dark" } });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [votingIntention, setVotingIntention] =
+    useState<IVotingIntention | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleOpenSelectFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const getVotingIntentionData = async () => {
+    setLoading(true);
+
+    try {
+      const { data } = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/voting-intention`
+      );
+
+      setVotingIntention(data.data);
+    } catch (error) {
+      console.error("Erro ao buscar dados da intenção de votos:", error);
+
+      setVotingIntention(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    getVotingIntentionData();
+  }, []);
+
+  const changeFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) {
+      alert("Nenhum arquivo selecionado.");
+
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("survey", fileList[0]);
+
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/upload-survey`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      alert("Upload realizado com sucesso!");
+
+      getVotingIntentionData();
+    } catch (error) {
+      console.error("Erro ao fazer upload da pesquisa:", error);
+
+      alert("Erro ao realizar o upload. Tente novamente.");
+    }
+  };
+
+  return (
+    <div className="p-10">
+      <div className="flex justify-end mb-4">
+        <input
+          ref={fileInputRef}
+          id="input-file"
+          className="hidden"
+          type="file"
+          accept=".csv"
+          onChange={(e) => changeFile(e.target.files)}
+        />
+
+        <button
+          className="border-[1px] border-[#094F93] bg-[#072645] text-[#5593D1] text-lg h-12 w-60 rounded"
+          onClick={handleOpenSelectFile}
+        >
+          Atualizar
+        </button>
+      </div>
+
+      <h1 className="text-4xl font-semibold mb-2">
+        Pesquisa de intenção de votos.
+      </h1>
+
+      <p className="font-normal text-sm mb-6">
+        Nossa aplicação inovadora oferece estimativas precisas da intenção de
+        votos, com análises em tempo real sobre candidatos e tendências.
+        Mantenha-se informado e faça sua voz ser ouvida nas eleições!
+      </p>
+
+      <div className="flex justify-center items-center min-h-80 bg-[#11171D] border-[#27313A] border-[1px] pt-6">
+        <ThemeProvider theme={newTheme}>
+          {loading ? (
+            <span className="text-xl">Carregando dados...</span>
+          ) : votingIntention ? (
+            <BarChart
+              barLabel={(item) => `${item.value}%`}
+              xAxis={[{ scaleType: "band", data: votingIntention.label }]}
+              series={Object.keys(votingIntention.percentages).map(
+                (intention) => ({
+                  data: votingIntention.percentages[intention],
+                  label: intention,
+                })
+              )}
+              height={400}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          ) : (
+            <span className="text-xl">
+              Faça upload de uma pesquisa para visualizar a intenção de votos!
+            </span>
+          )}
+        </ThemeProvider>
+      </div>
     </div>
   );
 }
